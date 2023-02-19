@@ -27,7 +27,7 @@ HOMEWORK_VERDICTS = {
 
 
 def check_tokens():
-    '''Проверяет наличие токенов'''
+    """Проверка наличия токенов."""
     tokens = (
         PRACTICUM_TOKEN,
         TELEGRAM_TOKEN,
@@ -37,7 +37,7 @@ def check_tokens():
 
 
 def send_message(bot, message):
-    '''Отправка сообщений в Telegram'''
+    """Отправка сообщений в Telegram."""
     try:
         logging.info('Отправка сообщения')
         bot.send_message(TELEGRAM_CHAT_ID, message)
@@ -48,21 +48,22 @@ def send_message(bot, message):
 
 
 def get_api_answer(timestamp):
-    '''Запрос к эндпоиниту'''
+    """Запрос к эндпоиниту."""
     payload = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=payload)
     except Exception as e:
         logging.error(f'Недоступность эндпоинта, ошибка: {e}')
-        raise Exception(f'Недоступность эндпоинта')
+        raise Exception('Недоступность эндпоинта')
     if response.status_code != HTTPStatus.OK:
-        logging.error(f'Не удалось получить ответ от API, код ошибки {response.status_code}')
+        logging.error(f'Не удалось получить ответ от API,'
+                      f'код ошибки {response.status_code}')
         raise Exception(response.status_code)
     return response.json()
 
 
 def check_response(response):
-    '''Проверка ответа API'''
+    """Проверка ответа API."""
     if not isinstance(response, dict):
         raise TypeError('Неверный тип ответа API')
     if 'homeworks' not in response:
@@ -77,9 +78,11 @@ def check_response(response):
 
 
 def parse_status(homework):
-    '''Извлекает статус домашней работы'''
+    """Извлекает статус домашней работы."""
     try:
-        homework_name, homework_status = homework['homework_name'], homework['status']
+        homework_name, homework_status = (
+            homework['homework_name'], homework['status']
+        )
     except KeyError:
         raise KeyError("Нет ожидаемого ключа")
     if homework_status in HOMEWORK_VERDICTS:
@@ -94,7 +97,7 @@ def main():
     """Основная логика работы бота."""
     logging.basicConfig(
         level=logging.DEBUG,
-        filename='log.log', 
+        filename='log.log',
         format='%(asctime)s, %(levelname)s, %(message)s'
     )
     if not check_tokens():

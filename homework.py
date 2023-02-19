@@ -39,10 +39,11 @@ def check_tokens():
 def send_message(bot, message):
     '''Отправка сообщений в Telegram'''
     try:
+        logging.info('Отправка сообщения')
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.debug('Сообщение отправлено')
-    except telegram.TelegramError as e:
-        logging.error(e)
+    except telegram.error.TelegramError as e:
+        logging.error(f'Не удалось отправить сообщение {e}')
         raise Exception('Не удалось отправить сообщение в Телеграмм')
 
 
@@ -52,9 +53,10 @@ def get_api_answer(timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=payload)
     except Exception as e:
-        raise Exception(f'Не удалось получить ответ от API, ошибка: {e}')
+        logging.error(f'Недоступность эндпоинта, ошибка: {e}')
+        raise Exception(f'Недоступность эндпоинта')
     if response.status_code != HTTPStatus.OK:
-        logging.error(f'Недоступность эндпоинта, код ошибки {response.status_code}')
+        logging.error(f'Не удалось получить ответ от API, код ошибки {response.status_code}')
         raise Exception(response.status_code)
     return response.json()
 
@@ -90,16 +92,16 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename='log.log', 
+        format='%(asctime)s, %(levelname)s, %(message)s'
+    )
     if not check_tokens():
         logging.critical('Не указан токен')
         sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    logging.basicConfig(
-        level=logging.INFO,
-        filename='log.log', 
-        format='%(asctime)s, %(levelname)s, %(message)s'
-    )
     while True:
         try:
             response = get_api_answer(timestamp)
@@ -111,7 +113,7 @@ def main():
                     send_message(bot, message)
                 logging.info('Повторный запрос через 10 минут')
             else:
-                logging.info('Отсутствует новая информация')
+                logging.debug('Отсутствует новая информация')
             timestamp = current_time
         except Exception as error:
             message = f'Сбой в работе программы: {error}'

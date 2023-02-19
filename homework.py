@@ -103,11 +103,15 @@ def main():
     while True:
         try:
             response = get_api_answer(timestamp)
+            logging.info('Получили ответ от API')
             homeworks, current_time = check_response(response)
             if homeworks:
                 for homework in homeworks:
                     message = parse_status(homework)
                     send_message(bot, message)
+                logging.info('Повторный запрос через 10 минут')
+            else:
+                logging.info('Отсутствует новая информация')
             timestamp = current_time
         except Exception as error:
             message = f'Сбой в работе программы: {error}'

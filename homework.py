@@ -114,10 +114,10 @@ def main():
                 for homework in homeworks:
                     message = parse_status(homework)
                     send_message(bot, message)
-                logging.info('Повторный запрос через 10 минут')
             else:
                 logging.debug('Отсутствует новая информация')
             timestamp = current_time
+            logging.info('Повторный запрос через 10 минут')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)

@@ -3,9 +3,14 @@ import os
 import requests
 import sys
 import time
+
 import telegram
+
 from dotenv import load_dotenv
 from http import HTTPStatus
+
+from exceptions import MessageIsNotSent
+
 
 load_dotenv()
 
@@ -43,8 +48,10 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.debug('Сообщение отправлено')
     except telegram.error.TelegramError as e:
-        logging.error(f'Не удалось отправить сообщение {e}')
-        raise Exception('Не удалось отправить сообщение в Телеграмм')
+        logging.error(f'Не удалось отправить сообщение в Телеграмм, '
+                      f'ошибка: {e}'
+                      )
+        raise MessageIsNotSent('Не удалось отправить сообщение в Телеграмм')
 
 
 def get_api_answer(timestamp):
@@ -56,7 +63,7 @@ def get_api_answer(timestamp):
         logging.error(f'Недоступность эндпоинта, ошибка: {e}')
         raise Exception('Недоступность эндпоинта')
     if response.status_code != HTTPStatus.OK:
-        logging.error(f'Не удалось получить ответ от API,'
+        logging.error(f'Не удалось получить ответ от API, '
                       f'код ошибки {response.status_code}')
         raise Exception(response.status_code)
     return response.json()
@@ -66,12 +73,11 @@ def check_response(response):
     """Проверка ответа API."""
     if not isinstance(response, dict):
         raise TypeError('Неверный тип ответа API')
-    if 'homeworks' not in response:
-        logging.error("Отсутствие 'homeworks' в ответе API")
-        raise KeyError('Отсутствие ожидаемых ключей')
-    if 'current_date' not in response:
-        logging.error("Отсутствие 'current_date' в ответе API")
-        raise KeyError('Отсутствие ожидаемых ключей')
+    response_keys = ['homeworks', 'current_date']
+    for key in response_keys:
+        if key not in response:
+            logging.error(f'Отсутствие {key} в ответе API')
+            raise KeyError('Отсутствие ожидаемых ключей')
     if not isinstance(response.get('homeworks'), list):
         raise TypeError("Неверный тип 'homeworks'")
     return response.get('homeworks'), response.get('current_date')
@@ -98,13 +104,14 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG,
         filename='log.log',
-        format='%(asctime)s, %(levelname)s, %(message)s'
+        format='%(asctime)s, %(levelname)s, %(message)s',
     )
     if not check_tokens():
         logging.critical('Не указан токен')
         sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
+    caught_error = ''
     while True:
         try:
             response = get_api_answer(timestamp)
@@ -118,11 +125,13 @@ def main():
                 logging.debug('Отсутствует новая информация')
             timestamp = current_time
             logging.info('Повторный запрос через 10 минут')
+        except MessageIsNotSent:
+            pass
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            logging.error(message)
-            send_message(bot, message)
-            raise Exception(error)
+            if repr(error) != repr(caught_error):
+                send_message(bot, message)
+                caught_error = error
         finally:
             time.sleep(RETRY_PERIOD)
 
